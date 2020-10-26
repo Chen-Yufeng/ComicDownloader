@@ -6,6 +6,7 @@ import sys
 import time
 import os
 import re
+import img2pdf
 
 
 def validate_file_name(origi_name):
@@ -41,7 +42,7 @@ def download_images(title, image_links):
     if not os.path.exists(downloads_path):
         os.makedirs(downloads_path)
 
-    index = 0
+    index = 1
     for link in image_links:
         response = requests.get(link)
         if response.status_code != 200:
@@ -53,11 +54,26 @@ def download_images(title, image_links):
                 response = requests.get(link)
                 if (response.status_code == 200):
                     break
-        with open(os.path.join(downloads_path, '%03d' % index), 'wb') as f:
+        with open(os.path.join(downloads_path, '%03d.jpg' % index), 'wb') as f:
             f.write(response.content)
         response.close()
         index = index + 1
+    
+    return downloads_path
 
+def generate_pdf(title, path):
+    pdf_path = os.path.join(path, validate_file_name(title) + '.pdf')
+    with open(pdf_path, 'wb') as f:
+        imgs = []
+        for fname in os.listdir(path):
+            if not fname.endswith('.jpg'):
+                continue
+            jpg_path = os.path.join(path, fname)
+            if os.path.isdir(jpg_path):
+                continue
+            imgs.append(jpg_path)
+        imgs.sort()
+        f.write(img2pdf.convert(imgs))
 
 def main(url):
     html = get_html(url)
@@ -66,12 +82,14 @@ def main(url):
     soup = BeautifulSoup(html, 'lxml')
     title = get_title(soup)
     image_links = get_image_links(soup)
-    download_images(title, image_links)
+    downloads_path = download_images(title, image_links)
+    generate_pdf(title, downloads_path)
+    
     return 0
 
 
 if __name__ == '__main__':
-    print('Comic Image Downloader V0.1.1')
+    print('Comic Image Downloader V0.1.2')
     while True:
         link = input('Enter link: ')
         if link.lower() == 'bye':
